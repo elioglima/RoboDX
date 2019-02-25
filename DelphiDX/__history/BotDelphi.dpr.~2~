@@ -1,0 +1,17 @@
+program BotDelphi;
+
+uses
+  Vcl.Forms,
+  uPrincipal in 'Principal\uPrincipal.pas' {Form2},
+  uSISDebug in 'Libs\uSISDebug.pas';
+
+{$R *.res}
+
+begin
+    CreateDebug;
+
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TForm2, Form2);
+  Application.Run;
+end.

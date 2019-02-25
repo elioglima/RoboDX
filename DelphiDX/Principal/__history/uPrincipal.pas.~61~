@@ -1,0 +1,157 @@
+unit uPrincipal;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  IdBaseComponent, IdComponent, IdTCPConnection, IdTCPClient, IdHTTP,
+  IdIOHandler, IdIOHandlerSocket, IdIOHandlerStack, IdSSL, IdSSLOpenSSL, uSISDebug,
+  Data.DB, Vcl.Grids, Vcl.DBGrids, Vcl.DBCtrls, Vcl.ComCtrls;
+
+type
+  TForm2 = class(TForm)
+    GroupBox1: TGroupBox;
+    Label2: TLabel;
+    edMsgTesteMsg: TMemo;
+    Button1: TButton;
+    GroupBox2: TGroupBox;
+    Timer1: TTimer;
+    URL: TEdit;
+    Label4: TLabel;
+    Label1: TLabel;
+    edMsgTesteEmpresa: TEdit;
+    edMsgTesteAssistente: TEdit;
+    Label6: TLabel;
+    edMsgTesteTenologia: TEdit;
+    Label7: TLabel;
+    edMsgTesteIdentificador: TEdit;
+    Label8: TLabel;
+    edMsgTesteResp: TMemo;
+    spStatusServidor: TShape;
+    Button2: TButton;
+    PageControl1: TPageControl;
+    TabSheet1: TTabSheet;
+    DBGrid1: TDBGrid;
+    DBMemo1: TDBMemo;
+    DBMemo2: TDBMemo;
+    Button4: TButton;
+    Label3: TLabel;
+    Label5: TLabel;
+    Label9: TLabel;
+    TabSheet2: TTabSheet;
+    DBGrid2: TDBGrid;
+    Label10: TLabel;
+    Button5: TButton;
+    Button6: TButton;
+    procedure Button1Click(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
+  private
+    ApiInfo:TSISHttpResponse;
+    function Post(sURL:string; sJSON:string):TSISHttpResponse;
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form2: TForm2;
+
+implementation
+
+
+{$R *.dfm}
+
+uses udmConexao;
+
+procedure TForm2.Button1Click(Sender: TObject);
+var ResultadoWS:TSISHttpResponse;
+    sJson:string;
+begin
+
+    sJson := '{';
+	sJson := sJson +'"EP":' + SISDebug.ToIntStr(edMsgTesteEmpresa.Text);
+	sJson := sJson +',"AS":' + SISDebug.ToIntStr(edMsgTesteAssistente.Text);
+	sJson := sJson +',"Tecnologia":' + SISDebug.ToIntStr(edMsgTesteTenologia.Text);
+	sJson := sJson +',"Identificador":"'+ edMsgTesteIdentificador.Text +'"';
+	sJson := sJson +',"Mensagem":"'+ SISDebug.LimpaString(edMsgTesteMsg.Text)+'"';
+    sJson := sJson +'}';
+    ResultadoWS := Post('assistente', sJson);
+
+    edMsgTesteResp.Lines.Clear;
+    edMsgTesteResp.Lines.Add('Status:' + IntToStr(ResultadoWS.HttpStatus));
+    edMsgTesteResp.Lines.Add(ResultadoWS.Response);
+
+end;
+
+procedure TForm2.Button2Click(Sender: TObject);
+begin
+    dmConexao.Conectar;
+end;
+
+procedure TForm2.Button5Click(Sender: TObject);
+begin
+    try
+        if not dmConexao.FDConnection.Connected then
+            dmConexao.Conectar;
+
+        dmConexao.goex_conversa_identificador.Close;
+        dmConexao.goex_conversa_identificador.SQL.Clear;
+        dmConexao.goex_conversa_identificador.SQL.Add('select * from goex_conversa_identificador');
+        dmConexao.goex_conversa_identificador.Open;
+
+    except
+
+    end;
+end;
+
+function TForm2.Post(sURL:string; sJSON:string):TSISHttpResponse;
+var
+  code: Integer;
+  sResponsePost: string;
+  JsonToSend: TStringStream;
+  ResultadoWS:TSISHttpResponse;
+begin
+
+    try
+        SISDebug.HTTP.HeaderClear;
+        SISDebug.HTTP.HeaderAdd('client_id','21395797-1a9a-33fa-802c-e0d121b771fb');
+        SISDebug.HTTP.HeaderAdd('secret','f1544c00-3ae9-3b06-8d90-69a8dcad35f4');
+        SISDebug.HTTP.HeaderAdd('access_token','04030015-2c52-3fa6-a946-1fd4b21e6b90');
+
+        ResultadoWS := SISDebug.HTTP.Post(URL.Text + '/' + sURL, sJSON);
+
+        if (ResultadoWS.HttpStatus = 200) then
+            ResultadoWS.Sucesso := True;
+
+    except on E:Exception do begin
+            ResultadoWS.Erro        := True;
+            ResultadoWS.HttpStatus  := 5001;
+            ResultadoWS.Response    := E.Message;
+            SISDebug.Msg('Erro:' + E.Message + ', Notifique o suporte tecnico.');
+        end;
+    end;
+
+    Result := ResultadoWS;
+
+end;
+
+procedure TForm2.Timer1Timer(Sender: TObject);
+begin
+    if (spStatusServidor.Brush.Color = clLime) then begin
+        spStatusServidor.Brush.Color := clWindow;
+        Exit;
+    end;
+
+    ApiInfo := Post('apiinfo', '');
+    if ApiInfo.HttpStatus = 200 then
+        spStatusServidor.Brush.Color := clLime
+    else if ApiInfo.HttpStatus = 500 then
+        spStatusServidor.Brush.Color := clred
+    else
+        spStatusServidor.Brush.Color := clWindow;
+end;
+
+end.
